@@ -5,6 +5,7 @@ import quantumrandom
 
 BLOCK_SIZE = 128
 MAX_LENGTH = 1024
+MAX_NUMBER = 1024
 DEFAULT_NUMBER = 1
 DEFAULT_LENGTH = 24
 DEFAULT_POPULATION = string.ascii_lowercase + string.ascii_uppercase + string.digits
