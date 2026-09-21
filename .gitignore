@@ -13,6 +13,12 @@ dist
 build
 *.egg-info
 
+# env
+.venv
+
+# python
+__pycache__
+
 # editors
 .idea
 .vscode

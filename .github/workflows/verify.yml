@@ -1,0 +1,74 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: CLI smoke test
+        run: quantum-sg --help
+
+      - name: Offline tests
+        run: |
+          python - <<'EOF'
+          import io
+          from contextlib import redirect_stdout, redirect_stderr
+          from unittest import mock
+
+          def fake_get_data(data_type, block_size, array_length):
+              import hashlib
+              return [hashlib.md5(str(array_length * 1000 + i).encode()).hexdigest() * (block_size // 32)
+                      for i in range(array_length)]
+
+          from quantum_sg.quantum_sg import main
+
+          def run(argv):
+              out, err = io.StringIO(), io.StringIO()
+              try:
+                  with mock.patch("sys.argv", argv), redirect_stdout(out), redirect_stderr(err):
+                      code = main()
+              except SystemExit as e:
+                  code = e.code
+              return code, out.getvalue(), err.getvalue()
+
+          cases = [
+              (["quantum-sg", "-l", "24", "-n", "2"], 0),
+              (["quantum-sg", "-wp", "-n", "3", "-l", "8"], 0),
+              (["quantum-sg", "-l", "0"], 2),
+              (["quantum-sg", "-n", "1025"], 2),
+              (["quantum-sg", "--no-digits", "--no-lowercase", "--no-uppercase"], 2),
+          ]
+
+          with mock.patch("quantumrandom.get_data", side_effect=fake_get_data):
+              for argv, expected in cases:
+                  code, out, err = run(argv)
+                  assert code == expected, (argv, code, expected, out, err)
+                  if expected == 0:
+                      assert out.strip() and not err, (out, err)
+                  else:
+                      assert not out and "error:" in err, (out, err)
+
+          print("offline tests passed")
+          EOF

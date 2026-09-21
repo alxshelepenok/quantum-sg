@@ -31,6 +31,7 @@ setup(
     packages=['quantum_sg'],
     keywords='quantum random secrets',
     install_requires=['quantumrandom'],
+    python_requires='>=3.6',
     entry_points="""
         [console_scripts]
         quantum-sg = quantum_sg.quantum_sg:main
